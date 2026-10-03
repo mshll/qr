@@ -1,6 +1,8 @@
 import type { Config } from "@react-router/dev/config";
 
+import { pages } from "./app/content/pages";
+
 export default {
   ssr: false,
-  prerender: ["/"],
+  prerender: pages.map((page) => page.path),
 } satisfies Config;
