@@ -1,14 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { GithubIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckCircleRegular } from "@mingcute/react/core-regular";
 import { toast } from "sonner";
 
-import { BrandMark } from "~/components/brand-mark";
 import { ExportButton, type ExportAction } from "~/components/export-button";
 import { RecentList } from "~/components/recent-list";
 import { TypeForm } from "~/components/type-forms";
 import { TypePicker, typeOrder } from "~/components/type-picker";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { Segmented } from "~/components/ui/segmented";
 import { useQrCode } from "~/hooks/use-qr-code";
 import { track } from "~/lib/analytics";
 import { downloadBlob, toCanvas, toPngBlob, toSvgString } from "~/lib/export";
@@ -21,18 +19,30 @@ import { clearRecent, loadRecent, saveRecent, type RecentItem } from "~/lib/rece
 import { describe, filenameFor, fromHash, initialState, toHash, type QrState } from "~/lib/state";
 import { cn } from "~/lib/utils";
 
-// Style and logo controls pull in the icon sets and shape swatches, so they load on first open
-const StylePanel = lazy(() =>
-  import("~/components/style-panel").then((module) => ({ default: module.StylePanel })),
+// Panels pull in the icon sets and render dozens of shape swatches, so they load on first open
+const ShapePanel = lazy(() =>
+  import("~/components/shape-panel").then((module) => ({ default: module.ShapePanel })),
+);
+const ColorPanel = lazy(() =>
+  import("~/components/color-panel").then((module) => ({ default: module.ColorPanel })),
 );
 const LogoPanel = lazy(() =>
   import("~/components/logo-panel").then((module) => ({ default: module.LogoPanel })),
 );
+const panels = { shape: ShapePanel, color: ColorPanel, logo: LogoPanel };
+
+type Tab = "content" | keyof typeof panels;
+
+const tabs: { value: Tab; label: string }[] = [
+  { value: "content", label: "Content" },
+  { value: "shape", label: "Shape" },
+  { value: "color", label: "Color" },
+  { value: "logo", label: "Logo" },
+];
 
 const PLACEHOLDER = "https://qr.mshl.me";
 
-type ScanStatus = "idle" | "checking" | "ok" | "fail";
-type Tab = "content" | "style" | "logo" | "recent";
+type ScanStatus = "idle" | "ok" | "fail";
 
 async function composeOnWhite(canvas: HTMLCanvasElement) {
   const out = document.createElement("canvas");
@@ -53,53 +63,20 @@ function isTyping(target: EventTarget | null) {
   );
 }
 
-const scanLabels: Record<ScanStatus, string> = {
-  idle: "Waiting for content",
-  checking: "Checking",
-  ok: "Scans",
-  fail: "May not scan",
-};
-
-function ScanPill({ status }: { status: ScanStatus }) {
-  return (
-    <p
-      aria-live="polite"
-      className="flex h-7 items-center gap-2 rounded-full border bg-panel/80 px-3 text-[12px] text-muted-foreground backdrop-blur"
-    >
-      <span
-        className={cn(
-          "size-1.5 rounded-full bg-subtle",
-          status === "ok" && "bg-lime",
-          status === "fail" && "bg-warning",
-          status === "checking" && "animate-pulse",
-        )}
-      />
-      {scanLabels[status]}
-    </p>
-  );
-}
-
 function PanelFallback() {
-  return <div className="h-80 animate-pulse rounded-lg bg-secondary/50" />;
+  return <div className="h-64 animate-pulse rounded-xl bg-field" />;
 }
 
 interface QrAppProps {
   initialType: QrType;
-  openLogo?: boolean;
-  heading: string;
-  lead: string;
-  children?: React.ReactNode;
 }
 
-export function QrApp({
-  initialType,
-  openLogo = false,
-  heading,
-  lead,
-  children,
-}: QrAppProps): React.ReactNode {
+export function QrApp({ initialType }: QrAppProps): React.ReactNode {
   const [state, setState] = useState<QrState>(() => initialState(initialType));
-  const [tab, setTab] = useState<Tab>(openLogo ? "logo" : "content");
+  const [tab, setTab] = useState<{ value: Tab; direction: number }>({
+    value: "content",
+    direction: 0,
+  });
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const [canShare, setCanShare] = useState(false);
   const [scan, setScan] = useState<ScanStatus>("idle");
@@ -114,17 +91,23 @@ export function QrApp({
     [payload, state.style, logoSrc],
   );
   const { containerRef, qrRef } = useQrCode(options);
-  const warning = payload ? contrastWarning(state.style) : null;
+  const contrast = payload ? contrastWarning(state.style) : null;
+  const status =
+    scan === "fail" ? (contrast ?? "May not scan") : scan === "ok" ? (contrast ?? "Scans") : null;
 
   const setType = useCallback((type: QrType) => {
     setState((s) => (s.type === type ? s : { ...s, type }));
-    setTab("content");
     track("type_switch", { type });
   }, []);
   const setData = <K extends QrType>(type: K, value: QrData[K]) =>
     setState((s) => ({ ...s, data: { ...s.data, [type]: value } }));
   const setStyle = (patch: Partial<QrStyle>) =>
     setState((s) => ({ ...s, style: { ...s.style, ...patch } }));
+
+  const switchTab = (value: Tab) => {
+    const index = (t: Tab) => tabs.findIndex((option) => option.value === t);
+    setTab((current) => ({ value, direction: Math.sign(index(value) - index(current.value)) }));
+  };
 
   useEffect(() => {
     const restored = fromHash(window.location.hash);
@@ -154,7 +137,6 @@ export function QrApp({
       setScan("idle");
       return;
     }
-    setScan("checking");
     let cancelled = false;
     const timer = setTimeout(async () => {
       const qr = qrRef.current;
@@ -175,9 +157,9 @@ export function QrApp({
     };
   }, [options, payload, qrRef]);
 
-  const runExport = async (action: ExportAction) => {
+  const runExport = async (action: ExportAction): Promise<boolean> => {
     const qr = qrRef.current;
-    if (!qr || !payload) return;
+    if (!qr || !payload) return false;
     const name = filenameFor(state);
     try {
       switch (action.kind) {
@@ -199,32 +181,32 @@ export function QrApp({
         case "link":
           await navigator.clipboard.writeText(window.location.href);
           toast.success(
-            state.type === "wifi" ? "Link copied, without the WiFi password" : "Link copied",
+            state.type === "wifi" ? "Link copied, without the password" : "Link copied",
           );
           track("export", { format: "link", type: state.type });
-          return;
+          return true;
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof DOMException && error.name === "AbortError") return false;
       console.error(error);
       toast.error(
         action.kind === "copy" || action.kind === "link" ? "Couldn't copy" : "Export failed",
       );
-      return;
+      return false;
     }
     track("export", {
       format: action.kind === "png" ? `png-${action.size}` : action.kind,
       type: state.type,
     });
-    const svg = await toSvgString(qr);
-    saveRecent({ label: describe(state), payload, state, svg }).then(setRecent, (error) =>
-      console.error(error),
-    );
+    toSvgString(qr)
+      .then((svg) => saveRecent({ label: describe(state), payload, state, svg }))
+      .then(setRecent, (error) => console.error(error));
+    return true;
   };
 
   const restore = (item: RecentItem) => {
     setState(item.state);
-    setTab("content");
+    window.scrollTo({ top: 0, behavior: "smooth" });
     track("recent_restored", { type: item.state.type });
   };
   const clear = () =>
@@ -236,119 +218,91 @@ export function QrApp({
   const exportButton = (
     <ExportButton disabled={!payload} canShare={canShare} onExport={runExport} />
   );
+  const ActivePanel = tab.value === "content" ? null : panels[tab.value];
 
   return (
-    <>
-      <header className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <a
-          href="/"
-          className="flex items-center gap-2 rounded-md text-[15px] font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        >
-          <BrandMark className="size-[18px]" />
-          QR
-        </a>
-        <a
-          href="https://github.com/mshll/qr"
-          aria-label="Source on GitHub"
-          className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
-        >
-          <HugeiconsIcon icon={GithubIcon} className="size-[18px]" />
-        </a>
-      </header>
-
-      <main>
-        <div className="mx-auto max-w-6xl px-4 pb-28 sm:px-6 lg:pb-16">
-          <div className="pt-2 pb-5 lg:pt-8 lg:pb-8">
-            <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-balance sm:text-[28px]">
-              {heading}
-            </h1>
-            <p className="mt-1.5 max-w-xl text-[14px] text-pretty text-muted-foreground sm:text-[15px]">
-              {lead}
-            </p>
+    <div className="mx-auto w-full max-w-[960px] px-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-12 lg:px-8 lg:pt-4">
+      <section
+        aria-label="Preview"
+        className="animate-in duration-500 fade-in slide-in-from-bottom-2 lg:sticky lg:top-6"
+      >
+        <div className="relative grid place-items-center rounded-[22px] bg-field py-7 lg:aspect-square lg:py-0">
+          <div
+            className={cn(
+              "aspect-square w-[min(208px,27dvh)] overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.18)] transition-[opacity,scale] duration-500 ease-out lg:w-[320px]",
+              !payload && "scale-[0.96] opacity-15 shadow-none",
+              state.style.transparent &&
+                "bg-[repeating-conic-gradient(#e5e5e5_0_25%,#fff_0_50%)] bg-size-[16px_16px]",
+            )}
+          >
+            <div ref={containerRef} className="size-full [&>svg]:size-full" />
           </div>
-
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-6">
-            <section
-              aria-label="Preview"
-              className="sticky top-0 z-20 -mx-4 grid gap-4 bg-background/85 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6 lg:top-6 lg:mx-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
-            >
-              <div className="canvas-grid relative grid place-items-center gap-3 rounded-2xl border bg-panel py-4 lg:min-h-[540px] lg:py-12">
-                <div
-                  className={cn(
-                    "aspect-square w-[148px] overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/5 transition-opacity sm:w-[200px] lg:w-[340px]",
-                    !payload && "opacity-25",
-                    state.style.transparent &&
-                      "bg-[repeating-conic-gradient(#e5e5e5_0_25%,#fff_0_50%)] bg-size-[16px_16px]",
-                  )}
-                >
-                  <div ref={containerRef} className="size-full [&>svg]:size-full" />
-                </div>
-                <div className="lg:absolute lg:bottom-3 lg:left-3">
-                  <ScanPill status={scan} />
-                </div>
-                {warning ? (
-                  <p className="absolute right-3 bottom-4 hidden max-w-[50%] text-right text-[12px] text-warning lg:block">
-                    {warning}
-                  </p>
-                ) : null}
-              </div>
-              <div className="max-lg:hidden">
-                <RecentList items={recent} onRestore={restore} onClear={clear} layout="strip" />
-              </div>
-            </section>
-
-            <aside className="flex flex-col rounded-2xl border bg-panel lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)]">
-              <Tabs
-                value={tab}
-                onValueChange={(value) => setTab(value as Tab)}
-                className="min-h-0 flex-1 gap-0"
+          <p
+            aria-live="polite"
+            className="absolute inset-x-4 bottom-1.5 flex justify-center text-[12px] leading-4 lg:bottom-5 lg:text-[13px]"
+          >
+            {status ? (
+              <span
+                key={status}
+                className={cn(
+                  "flex animate-in items-center gap-1 duration-300 fade-in",
+                  scan === "fail" ? "text-danger" : "text-muted-foreground",
+                )}
               >
-                <div className="border-b p-2">
-                  <TabsList className="h-9 w-full bg-secondary">
-                    <TabsTrigger value="content">Content</TabsTrigger>
-                    <TabsTrigger value="style">Style</TabsTrigger>
-                    <TabsTrigger value="logo">Logo</TabsTrigger>
-                    <TabsTrigger value="recent" className="lg:hidden">
-                      Recent
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                  <TabsContent value="content" className="grid content-start gap-4">
-                    <TypePicker value={state.type} onChange={setType} />
-                    <TypeForm
-                      key={state.type}
-                      type={state.type}
-                      data={state.data}
-                      onChange={setData}
-                    />
-                  </TabsContent>
-                  <TabsContent value="style">
-                    <Suspense fallback={<PanelFallback />}>
-                      <StylePanel style={state.style} onChange={setStyle} />
-                    </Suspense>
-                  </TabsContent>
-                  <TabsContent value="logo">
-                    <Suspense fallback={<PanelFallback />}>
-                      <LogoPanel style={state.style} onChange={setStyle} />
-                    </Suspense>
-                  </TabsContent>
-                  <TabsContent value="recent">
-                    <RecentList items={recent} onRestore={restore} onClear={clear} layout="grid" />
-                  </TabsContent>
-                </div>
-              </Tabs>
-              <div className="border-t p-3 max-lg:hidden">{exportButton}</div>
-            </aside>
-          </div>
+                {status === "Scans" ? <CheckCircleRegular className="size-3.5" /> : null}
+                {status}
+              </span>
+            ) : null}
+          </p>
         </div>
+        <div className="mt-3 max-lg:hidden">{exportButton}</div>
+      </section>
 
-        {children}
-      </main>
+      <div className="mt-5 animate-in duration-500 fade-in slide-in-from-bottom-2 lg:mt-0 lg:flex lg:h-0 lg:min-h-full lg:flex-col">
+        <div className="sticky top-0 z-20 -mx-4 bg-background px-4 pb-4 lg:static lg:mx-0 lg:px-0 lg:pb-5">
+          <Segmented
+            as="tab"
+            size="lg"
+            label="Sections"
+            options={tabs}
+            value={tab.value}
+            onChange={switchTab}
+          />
+        </div>
+        <div
+          key={tab.value}
+          role="tabpanel"
+          aria-label={tabs.find((option) => option.value === tab.value)?.label}
+          className={cn(
+            "animate-in duration-300 ease-out fade-in lg:-mx-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-8 lg:no-scrollbar lg:mask-[linear-gradient(to_bottom,#000_calc(100%-32px),transparent)]",
+            tab.direction > 0 && "slide-in-from-right-4",
+            tab.direction < 0 && "slide-in-from-left-4",
+          )}
+        >
+          {ActivePanel ? (
+            <Suspense fallback={<PanelFallback />}>
+              <ActivePanel style={state.style} onChange={setStyle} />
+            </Suspense>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 gap-3">
+                <TypePicker value={state.type} onChange={setType} />
+                <div
+                  key={state.type}
+                  className="animate-in duration-300 fade-in slide-in-from-bottom-1"
+                >
+                  <TypeForm type={state.type} data={state.data} onChange={setData} />
+                </div>
+              </div>
+              <RecentList items={recent} onRestore={restore} onClear={clear} />
+            </div>
+          )}
+        </div>
+      </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/85 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-linear-to-t from-background from-65% to-transparent px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
         {exportButton}
       </div>
-    </>
+    </div>
   );
 }

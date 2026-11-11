@@ -3,7 +3,6 @@ import type { QrType } from "~/lib/qr/types";
 export interface PageContent {
   path: string;
   type: QrType;
-  openLogo?: boolean;
   title: string;
   description: string;
   h1: string;
@@ -112,7 +111,6 @@ export const pages: PageContent[] = [
   {
     path: "/qr-code-with-logo",
     type: "url",
-    openLogo: true,
     title: "QR Code With Logo Generator · Free, No Watermark · QR",
     description:
       "Free QR code generator with logo. Upload your PNG, JPG, or SVG logo or pick a built-in icon. No sign-up, no watermark, and the code never expires.",

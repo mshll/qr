@@ -3,8 +3,7 @@
 import * as React from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "cn";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { CheckRegular, RightRegular } from "@mingcute/react/core-regular";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -119,7 +118,7 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="ml-auto" />
+      <RightRegular className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
   );
 }
@@ -173,7 +172,7 @@ function DropdownMenuCheckboxItem({
         data-slot="dropdown-menu-checkbox-item-indicator"
       >
         <MenuPrimitive.CheckboxItemIndicator>
-          <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} />
+          <CheckRegular />
         </MenuPrimitive.CheckboxItemIndicator>
       </span>
       {children}
@@ -208,7 +207,7 @@ function DropdownMenuRadioItem({
         data-slot="dropdown-menu-radio-item-indicator"
       >
         <MenuPrimitive.RadioItemIndicator>
-          <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} />
+          <CheckRegular />
         </MenuPrimitive.RadioItemIndicator>
       </span>
       {children}

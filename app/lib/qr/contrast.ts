@@ -17,9 +17,9 @@ function ratio(a: number, b: number) {
 export function contrastWarning(style: QrStyle): string | null {
   const bg = luminance(style.transparent ? "#ffffff" : style.bg);
   const inks = [style.fg, ...(style.gradient ? [style.gradient.to] : [])].map(luminance);
-  if (inks.some((ink) => ratio(ink, bg) < 3)) return "Low contrast between code and background";
+  if (inks.some((ink) => ratio(ink, bg) < 3)) return "Low contrast, may not scan";
   if (!style.transparent && inks.some((ink) => ink > bg))
-    return "Light code on a dark background: some scanner apps can't read inverted codes";
-  if (style.transparent) return "Transparent background: place it on a light surface";
+    return "Inverted colors, some apps can't read these";
+  if (style.transparent) return "Place it on a light surface";
   return null;
 }

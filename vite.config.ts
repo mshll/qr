@@ -10,6 +10,9 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   plugins: lazyPlugins(() => [tailwindcss(), reactRouter()]),
+  optimizeDeps: {
+    include: ["@base-ui/react/slider", "zxing-wasm/reader"],
+  },
   resolve: {
     tsconfigPaths: true,
   },

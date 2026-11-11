@@ -1,5 +1,7 @@
 import { useLocation } from "react-router";
+import { siGithub } from "simple-icons";
 
+import { BrandMark } from "~/components/brand-mark";
 import { QrApp } from "~/components/qr-app";
 import { SiteFooter } from "~/components/site-footer";
 import { pageByPath, pages } from "~/content/pages";
@@ -17,37 +19,29 @@ export function meta({ location }: Route.MetaArgs) {
 export default function Page() {
   const page = findPage(useLocation().pathname);
   return (
-    <>
-      <QrApp
-        key={page.path}
-        initialType={page.type}
-        openLogo={page.openLogo}
-        heading={page.h1}
-        lead={page.lead}
-      >
-        <section aria-labelledby="faq" className="mx-auto max-w-2xl px-4 pb-20 sm:px-6">
-          <h2 id="faq" className="mb-3 text-[13px] font-medium text-muted-foreground">
-            Questions
-          </h2>
-          <div className="divide-y border-y">
-            {page.faqs.map((faq) => (
-              <details key={faq.q} className="group [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3.5 text-[14px] font-medium rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
-                  {faq.q}
-                  <span
-                    aria-hidden
-                    className="text-subtle transition-transform duration-200 group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="pb-4 text-[14px] leading-relaxed text-muted-foreground">{faq.a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      </QrApp>
-      <SiteFooter />
-    </>
+    <div className="flex min-h-dvh flex-col">
+      <header className="mx-auto flex h-14 w-full max-w-[960px] items-center justify-between px-4 lg:h-[72px] lg:px-8">
+        <a
+          href="/"
+          className="flex items-center gap-2 text-[17px] font-semibold tracking-[-0.01em]"
+        >
+          <BrandMark className="size-[18px]" />
+          QR
+        </a>
+        <a
+          href="https://github.com/mshll/qr"
+          aria-label="Source on GitHub"
+          className="press -mr-2.5 grid size-10 place-items-center rounded-[10px] text-muted-foreground hover:bg-field hover:text-foreground"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden className="size-5 fill-current">
+            <path d={siGithub.path} />
+          </svg>
+        </a>
+      </header>
+      <main className="flex flex-1 flex-col lg:justify-center lg:pb-10">
+        <QrApp key={page.path} initialType={page.type} />
+      </main>
+      <SiteFooter page={page} />
+    </div>
   );
 }

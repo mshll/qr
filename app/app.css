@@ -1,117 +1,146 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+
+/* Collab Sans (SIL OFL 1.1), subset to Latin and renamed per its Reserved Font Name; see /fonts/OFL.txt */
+@font-face {
+  font-family: "QR Sans";
+  src: url("/fonts/QRSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "QR Sans";
+  src: url("/fonts/QRSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "QR Sans";
+  src: url("/fonts/QRSans-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-sans);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
+  --font-sans: "QR Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--line);
+  --color-field: var(--field);
+  --color-hover: var(--hover);
+  --color-danger: var(--danger);
   --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --color-panel: var(--panel);
-  --color-subtle: var(--subtle);
-  --color-lime: var(--lime);
-  --color-warning: var(--warning);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.5);
-  --radius-2xl: calc(var(--radius) * 2);
-  --radius-3xl: calc(var(--radius) * 2.5);
-  --radius-4xl: calc(var(--radius) * 3);
+  --color-popover-foreground: var(--fg);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--danger);
+  --color-ring: var(--muted);
 }
 
 :root {
   color-scheme: light;
-  --radius: 0.5rem;
-  --background: #f7f7f8;
-  --panel: #ffffff;
-  --foreground: #0f1011;
-  --card: #ffffff;
-  --card-foreground: #0f1011;
+  --bg: #ffffff;
+  --fg: #0a0a0a;
+  --muted: #7a7a7a;
+  --line: #e9e9e9;
+  --field: #f5f5f5;
+  --hover: #efefef;
   --popover: #ffffff;
-  --popover-foreground: #0f1011;
-  --primary: #0f1011;
-  --primary-foreground: #ffffff;
-  --secondary: #f0f0f2;
-  --secondary-foreground: #0f1011;
-  --muted: #f0f0f2;
-  --muted-foreground: #5f636a;
-  --subtle: #6e727a;
-  --accent: #0000000a;
-  --accent-foreground: #0f1011;
-  --destructive: #d92d20;
-  --lime: #4d7c0f;
-  --warning: #b45309;
-  --border: #0000000f;
-  --input: #00000017;
-  --ring: #0f1011;
-  --grid-dot: #00000017;
+  --accent: #f2f2f2;
+  --danger: #c4302b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --background: #08090a;
-    --panel: #0f1011;
-    --foreground: #f7f8f8;
-    --card: #0f1011;
-    --card-foreground: #f7f8f8;
-    --popover: #141516;
-    --popover-foreground: #f7f8f8;
-    --primary: #f7f8f8;
-    --primary-foreground: #08090a;
-    --secondary: #18191b;
-    --secondary-foreground: #f7f8f8;
-    --muted: #18191b;
-    --muted-foreground: #8a8f98;
-    --subtle: #7d828b;
-    --accent: #ffffff0d;
-    --accent-foreground: #f7f8f8;
-    --destructive: #f87171;
-    --lime: #b6f24a;
-    --warning: #f5a524;
-    --border: #ffffff12;
-    --input: #ffffff1a;
-    --ring: #f7f8f8;
-    --grid-dot: #ffffff12;
+    --bg: #0a0a0a;
+    --fg: #f2f2f2;
+    --muted: #868686;
+    --line: #1e1e1e;
+    --field: #141414;
+    --hover: #1a1a1a;
+    --popover: #161616;
+    --accent: #242424;
+    --danger: #ff6b63;
   }
-}
-
-@utility canvas-grid {
-  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
-  background-size: 14px 14px;
-  background-position: center;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring;
+    @apply border-border;
   }
   html {
-    @apply font-sans antialiased;
-    font-feature-settings: "cv11", "ss01";
+    @apply bg-background font-sans text-foreground antialiased;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-background text-foreground;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 1.5px solid var(--fg);
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility press {
+  transition-property: transform, background-color, color, opacity, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+@layer base {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details::details-content {
+    height: 0;
+    overflow: clip;
+    opacity: 0;
+    transition:
+      height 300ms var(--ease-out),
+      opacity 300ms var(--ease-out),
+      content-visibility 300ms allow-discrete;
+  }
+  details[open]::details-content {
+    height: auto;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::details-content {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

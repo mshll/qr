@@ -1,180 +1,126 @@
-import { useId, useState, type ComponentProps } from "react";
-import { ArrowDown01Icon, GpsSignal01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useRef, useState } from "react";
+import { CloseRegular, DownRegular, NavigationRegular } from "@mingcute/react/core-regular";
 import { toast } from "sonner";
 
-import { Button } from "~/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import { Switch } from "~/components/ui/switch";
-import { Textarea } from "~/components/ui/textarea";
-import { detectLink, type LinkKind } from "~/lib/qr/encode";
+  FieldButton,
+  FieldDate,
+  FieldGroup,
+  FieldInput,
+  FieldSelect,
+  FieldSwitch,
+  FieldTextarea,
+} from "~/components/ui/field";
 import type { QrData, QrType } from "~/lib/qr/types";
-
-type FieldProps = Omit<ComponentProps<"input">, "onChange" | "value"> & {
-  label: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  multiline?: boolean;
-};
-
-function TextField({ label, value, onValueChange, multiline, className, ...props }: FieldProps) {
-  const id = useId();
-  return (
-    <div className={className ? `grid gap-2 ${className}` : "grid gap-2"}>
-      <Label htmlFor={id}>{label}</Label>
-      {multiline ? (
-        <Textarea
-          id={id}
-          value={value}
-          placeholder={props.placeholder}
-          onChange={(e) => onValueChange(e.target.value)}
-          className="max-h-60"
-        />
-      ) : (
-        <Input id={id} value={value} onChange={(e) => onValueChange(e.target.value)} {...props} />
-      )}
-    </div>
-  );
-}
-
-const linkHints: Record<LinkKind, string> = {
-  url: "Opens the link",
-  email: "Detected an email address: opens a new email",
-  phone: "Detected a phone number: starts a call",
-  text: "Shows as plain text",
-};
 
 interface FormProps<K extends QrType> {
   value: QrData[K];
   onChange: (value: QrData[K]) => void;
 }
 
+const plain = { autoComplete: "off", autoCapitalize: "off", spellCheck: false } as const;
+
 function UrlForm({ value, onChange }: FormProps<"url">) {
-  const id = useId();
-  const detected = detectLink(value.value);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (window.matchMedia("(pointer: fine)").matches) ref.current?.focus();
+  }, []);
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id} className="sr-only">
-        Link or text
-      </Label>
-      <Input
-        id={id}
+    <FieldGroup className="relative">
+      <FieldInput
+        ref={ref}
+        label="Paste a link"
         value={value.value}
-        onChange={(e) => onChange({ value: e.target.value })}
-        placeholder="Paste a link, email or phone number"
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
+        onValueChange={(v) => onChange({ value: v })}
         inputMode="url"
-        className="h-11 text-base md:h-11 md:text-[15px]"
+        className="h-[52px] pr-12"
+        {...plain}
       />
-      <p className="min-h-4 text-[12px] text-subtle" aria-live="polite">
-        {detected.payload
-          ? `${linkHints[detected.kind]}${detected.kind === "url" ? `: ${detected.payload}` : ""}`
-          : ""}
-      </p>
-    </div>
+      {value.value ? (
+        <button
+          type="button"
+          aria-label="Clear"
+          onClick={() => {
+            onChange({ value: "" });
+            ref.current?.focus();
+          }}
+          className="absolute top-2 right-2 grid border-t-0! animate-in duration-200 fade-in zoom-in-75 size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <CloseRegular className="size-4" />
+        </button>
+      ) : null}
+    </FieldGroup>
   );
 }
 
 function TextForm({ value, onChange }: FormProps<"text">) {
   return (
-    <TextField
-      label="Text"
-      multiline
-      value={value.value}
-      onValueChange={(v) => onChange({ value: v })}
-      placeholder="Any text, up to a few hundred characters scans best"
-    />
+    <FieldGroup>
+      <FieldTextarea
+        label="Type anything"
+        value={value.value}
+        onValueChange={(v) => onChange({ value: v })}
+        className="min-h-32"
+      />
+    </FieldGroup>
   );
 }
+
+const securityOptions: { value: QrData["wifi"]["encryption"]; label: string }[] = [
+  { value: "WPA", label: "WPA" },
+  { value: "WEP", label: "WEP" },
+  { value: "nopass", label: "None" },
+];
 
 function WifiForm({ value, onChange }: FormProps<"wifi">) {
   const set = (patch: Partial<QrData["wifi"]>) => onChange({ ...value, ...patch });
-  const hiddenId = useId();
   return (
-    <div className="grid gap-4">
-      <TextField
-        label="Network name (SSID)"
+    <FieldGroup>
+      <FieldInput
+        label="Network name"
         value={value.ssid}
         onValueChange={(ssid) => set({ ssid })}
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
+        {...plain}
       />
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <TextField
+      {value.encryption === "nopass" ? null : (
+        <FieldInput
           label="Password"
           value={value.password}
           onValueChange={(password) => set({ password })}
-          disabled={value.encryption === "nopass"}
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
+          {...plain}
         />
-        <div className="grid gap-2">
-          <Label>Security</Label>
-          <Select
-            value={value.encryption}
-            onValueChange={(encryption) => encryption && set({ encryption })}
-            items={{ WPA: "WPA/WPA2/WPA3", WEP: "WEP", nopass: "None" }}
-          >
-            <SelectTrigger className="w-full sm:w-40" aria-label="Security">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="WPA">WPA/WPA2/WPA3</SelectItem>
-              <SelectItem value="WEP">WEP</SelectItem>
-              <SelectItem value="nopass">None</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <Switch
-          id={hiddenId}
-          checked={value.hidden}
-          onCheckedChange={(hidden) => set({ hidden })}
-        />
-        <Label htmlFor={hiddenId} className="font-normal text-foreground">
-          Hidden network
-        </Label>
-      </div>
-    </div>
+      )}
+      <FieldSelect
+        label="Security"
+        value={value.encryption}
+        options={securityOptions}
+        onChange={(encryption) => set({ encryption })}
+      />
+      <FieldSwitch label="Hidden" checked={value.hidden} onChange={(hidden) => set({ hidden })} />
+    </FieldGroup>
   );
 }
 
-function MoreFields({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <Collapsible>
-      <CollapsibleTrigger
-        render={
-          <Button variant="ghost" size="sm" className="group -ml-2.5 text-muted-foreground" />
-        }
-      >
-        {label}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          className="transition-transform group-data-panel-open:rotate-180"
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-3">{children}</CollapsibleContent>
-    </Collapsible>
-  );
-}
+const extraVcardKeys = [
+  "org",
+  "title",
+  "website",
+  "street",
+  "city",
+  "region",
+  "postcode",
+  "country",
+  "note",
+] as const;
 
 function VcardForm({ value, onChange }: FormProps<"vcard">) {
-  const field = (key: keyof QrData["vcard"], label: string, props: Partial<FieldProps> = {}) => (
-    <TextField
+  const [more, setMore] = useState(() => extraVcardKeys.some((key) => value[key]));
+  const field = (
+    key: keyof QrData["vcard"],
+    label: string,
+    props: Partial<Omit<React.ComponentProps<"input">, "value">> = {},
+  ) => (
+    <FieldInput
       label={label}
       value={value[key]}
       onValueChange={(v) => onChange({ ...value, [key]: v })}
@@ -182,33 +128,45 @@ function VcardForm({ value, onChange }: FormProps<"vcard">) {
     />
   );
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3">
+      <FieldGroup>
         {field("firstName", "First name", { autoComplete: "given-name" })}
         {field("lastName", "Last name", { autoComplete: "family-name" })}
         {field("phone", "Phone", { type: "tel", autoComplete: "tel" })}
         {field("email", "Email", { type: "email", autoComplete: "email" })}
-      </div>
-      <MoreFields label="Company, website and address">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {field("org", "Company", { autoComplete: "organization" })}
-          {field("title", "Job title", { autoComplete: "organization-title" })}
-          {field("website", "Website", {
-            type: "url",
-            autoComplete: "url",
-            className: "sm:col-span-2",
-          })}
-          {field("street", "Street", {
-            autoComplete: "street-address",
-            className: "sm:col-span-2",
-          })}
-          {field("city", "City", { autoComplete: "address-level2" })}
-          {field("region", "State / region", { autoComplete: "address-level1" })}
-          {field("postcode", "Postal code", { autoComplete: "postal-code" })}
-          {field("country", "Country", { autoComplete: "country-name" })}
-          {field("note", "Note", { multiline: true, className: "sm:col-span-2" })}
-        </div>
-      </MoreFields>
+      </FieldGroup>
+      {more ? (
+        <>
+          <FieldGroup>
+            {field("org", "Company", { autoComplete: "organization" })}
+            {field("title", "Job title", { autoComplete: "organization-title" })}
+            {field("website", "Website", { ...plain, type: "url", autoComplete: "url" })}
+          </FieldGroup>
+          <FieldGroup>
+            {field("street", "Street", { autoComplete: "street-address" })}
+            {field("city", "City", { autoComplete: "address-level2" })}
+            {field("region", "State or region", { autoComplete: "address-level1" })}
+            {field("postcode", "Postal code", { autoComplete: "postal-code" })}
+            {field("country", "Country", { autoComplete: "country-name" })}
+          </FieldGroup>
+          <FieldGroup>
+            <FieldTextarea
+              label="Note"
+              value={value.note}
+              onValueChange={(note) => onChange({ ...value, note })}
+            />
+          </FieldGroup>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setMore(true)}
+          className="flex h-9 w-fit items-center gap-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          More fields
+          <DownRegular className="size-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -216,59 +174,54 @@ function VcardForm({ value, onChange }: FormProps<"vcard">) {
 function EmailForm({ value, onChange }: FormProps<"email">) {
   const set = (patch: Partial<QrData["email"]>) => onChange({ ...value, ...patch });
   return (
-    <div className="grid gap-4">
-      <TextField
+    <FieldGroup>
+      <FieldInput
         label="To"
         type="email"
         value={value.to}
         onValueChange={(to) => set({ to })}
         autoComplete="email"
       />
-      <TextField
+      <FieldInput
         label="Subject"
         value={value.subject}
         onValueChange={(subject) => set({ subject })}
       />
-      <TextField
-        label="Message"
-        multiline
-        value={value.body}
-        onValueChange={(body) => set({ body })}
-      />
-    </div>
+      <FieldTextarea label="Message" value={value.body} onValueChange={(body) => set({ body })} />
+    </FieldGroup>
   );
 }
 
 function SmsForm({ value, onChange }: FormProps<"sms">) {
   const set = (patch: Partial<QrData["sms"]>) => onChange({ ...value, ...patch });
   return (
-    <div className="grid gap-4">
-      <TextField
+    <FieldGroup>
+      <FieldInput
         label="Phone number"
         type="tel"
         value={value.phone}
         onValueChange={(phone) => set({ phone })}
       />
-      <TextField
+      <FieldTextarea
         label="Message"
-        multiline
         value={value.message}
         onValueChange={(message) => set({ message })}
       />
-    </div>
+    </FieldGroup>
   );
 }
 
 function PhoneForm({ value, onChange }: FormProps<"phone">) {
   return (
-    <TextField
-      label="Phone number"
-      type="tel"
-      value={value.phone}
-      onValueChange={(phone) => onChange({ phone })}
-      placeholder="+1 555 123 4567"
-      autoComplete="tel"
-    />
+    <FieldGroup>
+      <FieldInput
+        label="Phone number"
+        type="tel"
+        value={value.phone}
+        onValueChange={(phone) => onChange({ phone })}
+        autoComplete="tel"
+      />
+    </FieldGroup>
   );
 }
 
@@ -293,28 +246,23 @@ function LocationForm({ value, onChange }: FormProps<"location">) {
     );
   };
   return (
-    <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-4">
-        <TextField
-          label="Latitude"
-          inputMode="decimal"
-          value={value.lat}
-          onValueChange={(lat) => onChange({ ...value, lat })}
-          placeholder="40.748817"
-        />
-        <TextField
-          label="Longitude"
-          inputMode="decimal"
-          value={value.lng}
-          onValueChange={(lng) => onChange({ ...value, lng })}
-          placeholder="-73.985428"
-        />
-      </div>
-      <Button variant="outline" className="w-fit" onClick={locate} disabled={locating}>
-        <HugeiconsIcon icon={GpsSignal01Icon} />
+    <FieldGroup>
+      <FieldInput
+        label="Latitude"
+        inputMode="decimal"
+        value={value.lat}
+        onValueChange={(lat) => onChange({ ...value, lat })}
+      />
+      <FieldInput
+        label="Longitude"
+        inputMode="decimal"
+        value={value.lng}
+        onValueChange={(lng) => onChange({ ...value, lng })}
+      />
+      <FieldButton icon={NavigationRegular} onClick={locate} disabled={locating}>
         {locating ? "Locating…" : "Use my location"}
-      </Button>
-    </div>
+      </FieldButton>
+    </FieldGroup>
   );
 }
 
@@ -325,31 +273,22 @@ function toggleAllDay(value: string, allDay: boolean) {
 
 function EventForm({ value, onChange }: FormProps<"event">) {
   const set = (patch: Partial<QrData["event"]>) => onChange({ ...value, ...patch });
-  const allDayId = useId();
   const inputType = value.allDay ? "date" : "datetime-local";
   return (
-    <div className="grid gap-4">
-      <TextField label="Title" value={value.title} onValueChange={(title) => set({ title })} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label="Starts"
-          type={inputType}
-          value={value.start}
-          onValueChange={(start) => set({ start })}
+    <div className="grid gap-3">
+      <FieldGroup>
+        <FieldInput label="Title" value={value.title} onValueChange={(title) => set({ title })} />
+        <FieldInput
+          label="Location"
+          value={value.location}
+          onValueChange={(location) => set({ location })}
         />
-        <TextField
-          label="Ends"
-          type={inputType}
-          value={value.end}
-          min={value.start}
-          onValueChange={(end) => set({ end })}
-        />
-      </div>
-      <div className="flex items-center gap-3">
-        <Switch
-          id={allDayId}
+      </FieldGroup>
+      <FieldGroup>
+        <FieldSwitch
+          label="All day"
           checked={value.allDay}
-          onCheckedChange={(allDay) =>
+          onChange={(allDay) =>
             set({
               allDay,
               start: toggleAllDay(value.start, allDay),
@@ -357,21 +296,27 @@ function EventForm({ value, onChange }: FormProps<"event">) {
             })
           }
         />
-        <Label htmlFor={allDayId} className="font-normal text-foreground">
-          All day
-        </Label>
-      </div>
-      <TextField
-        label="Location"
-        value={value.location}
-        onValueChange={(location) => set({ location })}
-      />
-      <TextField
-        label="Description"
-        multiline
-        value={value.description}
-        onValueChange={(description) => set({ description })}
-      />
+        <FieldDate
+          label="Starts"
+          type={inputType}
+          value={value.start}
+          onValueChange={(start) => set({ start })}
+        />
+        <FieldDate
+          label="Ends"
+          type={inputType}
+          value={value.end}
+          min={value.start}
+          onValueChange={(end) => set({ end })}
+        />
+      </FieldGroup>
+      <FieldGroup>
+        <FieldTextarea
+          label="Description"
+          value={value.description}
+          onValueChange={(description) => set({ description })}
+        />
+      </FieldGroup>
     </div>
   );
 }

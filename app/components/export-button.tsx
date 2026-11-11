@@ -1,19 +1,15 @@
+import { useEffect, useState } from "react";
 import {
-  ArrowDown01Icon,
-  Copy01Icon,
-  Download04Icon,
-  Link02Icon,
-  Share08Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  CheckRegular,
+  Download2Regular,
+  More1Regular,
+  UploadRegular,
+} from "@mingcute/react/core-regular";
 
-import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -29,72 +25,83 @@ export type ExportAction =
 
 const PNG_SIZES = [512, 1024, 2048];
 
+const iconButton =
+  "press grid size-12 shrink-0 place-items-center rounded-xl bg-field hover:bg-hover disabled:opacity-40 aria-expanded:bg-hover";
+
 interface ExportButtonProps {
   disabled: boolean;
   canShare: boolean;
-  onExport: (action: ExportAction) => void;
-  className?: string;
+  onExport: (action: ExportAction) => Promise<boolean>;
 }
 
-export function ExportButton({
-  disabled,
-  canShare,
-  onExport,
-  className,
-}: ExportButtonProps): React.ReactNode {
+const SAVED_MS = 1600;
+
+const label =
+  "col-start-1 row-start-1 flex items-center gap-2 transition-[opacity,translate] duration-300 ease-out";
+
+export function ExportButton({ disabled, canShare, onExport }: ExportButtonProps): React.ReactNode {
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), SAVED_MS);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  const download = async () => {
+    if (await onExport({ kind: "png", size: 1024 })) setSaved(true);
+  };
+
   return (
-    <div className={cn("flex", className)}>
-      <Button
-        size="lg"
+    <div className="flex gap-2">
+      <button
+        type="button"
         disabled={disabled}
-        onClick={() => onExport({ kind: "png", size: 1024 })}
-        className="h-10 flex-1 rounded-r-none text-[14px] font-semibold"
+        onClick={() => void download()}
+        className="press grid h-12 flex-1 place-items-center rounded-xl bg-foreground text-[16px] font-semibold text-background disabled:opacity-25"
       >
-        <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
-        Download PNG
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
+        <span className={cn(label, saved && "-translate-y-2 opacity-0")}>
+          <Download2Regular className="size-5" />
+          Download
+        </span>
+        <span aria-hidden={!saved} className={cn(label, !saved && "translate-y-2 opacity-0")}>
+          <CheckRegular className="size-5" />
+          Saved
+        </span>
+      </button>
+      {canShare ? (
+        <button
+          type="button"
+          aria-label="Share"
           disabled={disabled}
-          render={
-            <Button
-              size="lg"
-              aria-label="More export options"
-              className="h-10 rounded-l-none border-l border-l-black/15 px-2.5"
-            />
-          }
+          onClick={() => void onExport({ kind: "share" })}
+          className={iconButton}
         >
-          <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
+          <UploadRegular className="size-5" />
+        </button>
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger disabled={disabled} aria-label="More options" className={iconButton}>
+          <More1Regular className="size-5" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Download</DropdownMenuLabel>
-            {PNG_SIZES.map((size) => (
-              <DropdownMenuItem key={size} onClick={() => onExport({ kind: "png", size })}>
-                PNG
-                <DropdownMenuShortcut>{size}px</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem onClick={() => onExport({ kind: "svg" })}>
-              SVG
-              <DropdownMenuShortcut>Vector</DropdownMenuShortcut>
+        <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-52">
+          {PNG_SIZES.map((size) => (
+            <DropdownMenuItem key={size} onClick={() => void onExport({ kind: "png", size })}>
+              PNG
+              <DropdownMenuShortcut>{size}px</DropdownMenuShortcut>
             </DropdownMenuItem>
-          </DropdownMenuGroup>
+          ))}
+          <DropdownMenuItem onClick={() => void onExport({ kind: "svg" })}>
+            SVG
+            <DropdownMenuShortcut>Vector</DropdownMenuShortcut>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onExport({ kind: "copy" })}>
-            <HugeiconsIcon icon={Copy01Icon} />
+          <DropdownMenuItem onClick={() => void onExport({ kind: "copy" })}>
             Copy image
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport({ kind: "link" })}>
-            <HugeiconsIcon icon={Link02Icon} />
+          <DropdownMenuItem onClick={() => void onExport({ kind: "link" })}>
             Copy link
           </DropdownMenuItem>
-          {canShare ? (
-            <DropdownMenuItem onClick={() => onExport({ kind: "share" })}>
-              <HugeiconsIcon icon={Share08Icon} />
-              Share
-            </DropdownMenuItem>
-          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
